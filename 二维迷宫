@@ -1,0 +1,92 @@
+import pandas as pd
+import numpy as np 
+
+
+#设置初值                       
+ACTIONS = ['foward','back','left','right'] #action space
+STATES = np.arange(16)                   #state  space
+#设置超参数
+GREEDY = 0.8         #贪婪程度
+ALPHA = 0.1          #学习率
+GAMMA = 0.9          #折扣因子
+MAX_EPISODES = 500   #最大取样序列数
+
+
+def choose_action(state, q_table):
+    state_actions = q_table.loc[state, :]
+    if ((state_actions[0] == state_actions[1] == state_actions[2] == state_actions[3])) or (np.random.random() > GREEDY):
+        '''初始q表或贪婪时选择随机策略'''
+        action_name = np.random.choice(ACTIONS)
+    else:
+        action_name = state_actions.idxmax()
+    return action_name
+
+
+def get_env_feedback(state, action):#基于到达状态的奖励
+    if (action == 'foward'):
+        if (state in (0,1,2,3)):
+            S_fun = state
+        else:
+            S_fun = state-4
+
+    if (action == 'back'):
+        if (state in (12,13,14,15)):
+            S_fun = state
+        else:
+            S_fun = state+4
+
+    if (action == 'left'):
+        if (state in (0,4,8,12)):
+            S_fun = state
+        else:
+            S_fun = state-1
+
+    if (action == 'right'):
+        if (state in (3,7,11,15)):
+            S_fun = state
+        else:
+            S_fun = state+1
+
+    #根据到达的状态给出reward
+    if S_fun == 0:
+        R_fun = 0
+    else:
+        R_fun = -1
+    return S_fun, R_fun
+        
+
+
+def rl():
+    q_table = pd.DataFrame(np.zeros((16,4),dtype=float),index = STATES,columns = ACTIONS) #建立 Q table
+    for episode in range(MAX_EPISODES):
+        S = 15 #每一个序列的初始状态
+
+        while S:
+            '''开始每一步的更新'''
+            A = choose_action(S, q_table)#选择动作A
+            S_, R = get_env_feedback(S,A)#S状态下A动作下的环境给出的奖励R和后一个状态值S_
+
+            q_predict = q_table.loc[S,A]#当前状态预测的Q(S,A)
+
+            if S_ != 0:#下一个状态不是终止，采样得到的的Q(S,A)
+                q_target = R + GAMMA * q_table.loc[S_, :].max()
+            else:
+                q_target = R 
+            #更新Q table
+            q_table.loc[S, A] += ALPHA * (q_target - q_predict)
+            #转移到下一个状态
+            S = S_
+
+    return q_table
+
+def display(q_table):
+    print(q_table)
+    q_table.to_excel(r'C:\Users\86166\Desktop\data.xlsx')
+    for i in range(16):
+        print('状态{}:行为{}'.format(i,q_table.loc[i,:].idxmax()))
+
+
+if __name__ == '__main__':
+    '''主函数'''
+    q_table = rl()
+    display(q_table)
